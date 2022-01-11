@@ -1,0 +1,47 @@
+My project is about top 5 football leagues of Europe for last 2 seasons. The general part of the data is real which I get with web scrapping
+ 'https://understat.com' web page. 
+
+The main problems I had during my project.
+
+1. I have a table which is called players_results. It is about players actions after each matches. 
+I was getting data in json which wasn't including match_id, which I thought that would be good for future analyzing if i had it in that table. There weren't any other columns which could
+help me to join this table with other tables in order to get necessary datas from other tables.So I solved this problem with another json data which I was getting while scrapping.
+My solution was putting these 2 json datas into one list and getting appropriate match_ids for that table.
+
+2. I had a problem with inserting more than 60000 rows into a table with python. Which was taking more than 3 hours to insert whole data into a table.
+I was using sqlalchemy for connecting to database and pandas for inserting rows into a table.
+DataFrame.to_sql('table_name',engine, index=False, if_exists='append'). 
+I solved this problem with using psychopg2.extras package.
+psycopg2.extras.execute_batch(cur, query, lst)
+This code helped me to insert more than 80000 rows into a table in 1 minute.
+
+3. I had other problems with creating lambdas in AWS and using them for my project porposes. For example I had to insert rows into my existing csv files after each matches 
+Which are in s3 buckets. I solved this problem with creating teamprorary csv files in my lambda functions and uploading them back into s3.
+    bucket_transactions = s3.Bucket('football-data-new-actions')
+    key_trans = 's3-bucket-trans/player_details_trans.csv'
+    local_file_trans = '/tmp/player_details_trans.csv'
+    s3.Bucket('football-data-new-actions').download_file(key_trans,local_file_trans)
+    
+    
+    # # write the data into '/tmp' folder
+    with open('/tmp/player_details_trans.csv','r') as infile:
+         reader = list(csv.reader(infile))
+         del reader[1:]
+         # reader = reader[::-1] # the date is ascending order in file
+         for i in lst:
+             reader.insert(1, i)
+    
+    with open('/tmp/player_details_trans.csv', 'w', newline='') as outfile:
+         writer = csv.writer(outfile)
+         for line in reader: # reverse order
+             writer.writerow(line)
+    
+    # # upload file from tmp to s3 key
+    bucket_transactions.upload_file('/tmp/player_details_trans.csv', key_trans)
+
+4. I had a problem with reading and inserting data from my s3 csv files into rds tables. I used encoding = "ISO-8859-1" which helped me to read and insert players data into players table.
+players = wr.s3.read_csv(path='s3://football-data-buckets/s3-bucket/players.csv', encoding = "ISO-8859-1")
+
+
+5. Another problem with lambda layers. While creating a virtual Environment there were missmatches with layer size which wasn't allowed.
+This problem was solved with AWSDataWrangler-Python37 layer which includes nearly all of packages that I am using now.
